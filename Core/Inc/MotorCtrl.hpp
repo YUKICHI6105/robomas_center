@@ -5,6 +5,8 @@
  *      Author: ykc
  */
 
+#pragma once
+
 #include <cstring>
 #include <main.h>
 #include "stm32f3xx_hal.h"
@@ -37,6 +39,8 @@ struct PIDParam{
 	float vel_e_pre = 0.0f;//de
 	float vel_du_pre = 0.0f;
 	void velPID(float target, float& goal, float& velocity, Motor& motorKinds);
+	float posPID(float target, float revolution);
+	void stableposPID(float target, float& goal, float& velocity, float& stableLimitVel, float revolution, Motor& motorKinds);
 };
 
 struct MotorParam{
@@ -63,7 +67,6 @@ class MotorCtrl{
 private:
 	MotorParam param[8];
 	PIDParam pidParam[8];
-	float e = 0.0;
 	//uint16_t vel = 0;
 public:
 	void setAng(uint16_t data, uint32_t receiveID);
@@ -71,10 +74,7 @@ public:
 	void setCurC610(uint16_t data, uint32_t receiveID);
 	void setCurC620(uint16_t data, uint32_t receiveID);
 	void setRevolution(uint8_t& number);
-	void velPID(uint8_t& number, float target);
-	float posPID(uint8_t& number, float& target);
 	void tyokuReset(uint8_t i);
-	void stableposPID(uint8_t& number, float& target);
 	bool update(uint32_t ReceiveID,uint8_t receiveData[8]);
 	void reset(uint8_t i);
 	void setFrame(uint8_t usb_msg[], const uint8_t len);

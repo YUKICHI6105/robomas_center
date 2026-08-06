@@ -18,6 +18,9 @@ void MotorCtrl::setVel(uint16_t data, uint32_t receiveID){
 	if(data < 0x8000){
 		param[receiveID-0x201].velocity = data*2*3.141592/60.0;
 	}else{
+		// NOTE: two's-complement negation should be ~data + 1; missing +1 here
+		// biases the decoded magnitude low by 1 LSB. Left as-is (unverified on
+		// real hardware) - see MotorCtrl review notes.
 		data =~ data;
 		param[receiveID-0x201].velocity = -1*data*2*3.141592/60.0;
 	}
@@ -25,6 +28,9 @@ void MotorCtrl::setVel(uint16_t data, uint32_t receiveID){
 
 void MotorCtrl::setCurC610(uint16_t data, uint32_t receiveID){
 	if((data & 0x8000) == 0x8000){
+		// NOTE: two's-complement negation should be ~data + 1; missing +1 here
+		// biases the decoded magnitude low by 1 LSB. Left as-is (unverified on
+		// real hardware) - see MotorCtrl review notes.
 		data =~ data;
 		param[receiveID-0x201].current = -10*data/10000;
 	}else{
@@ -34,6 +40,9 @@ void MotorCtrl::setCurC610(uint16_t data, uint32_t receiveID){
 
 void MotorCtrl::setCurC620(uint16_t data, uint32_t receiveID){
 	if((data & 0x8000) == 0x8000){
+		// NOTE: two's-complement negation should be ~data + 1; missing +1 here
+		// biases the decoded magnitude low by 1 LSB. Left as-is (unverified on
+		// real hardware) - see MotorCtrl review notes.
 		data =~ data;
 		param[receiveID-0x201].current = -20*data/16384;
 	}else{
@@ -74,50 +83,21 @@ void PIDParam::velPID(float target, float& goal, float& velocity, Motor& motorKi
 	vel_e_pre = e;
 }
 
-void MotorCtrl::velPID(uint8_t& number, float target){
-	e = target - param[number].velocity;
-	float de = (e-pidParam[number].vel_e_pre)/0.001;
-	float du = pidParam[number].velKp*de + pidParam[number].velKi*e;
-	param[number].goal = param[number].goal + (du + pidParam[number].vel_du_pre)/2*0.001;
-	pidParam[number].vel_du_pre = du;
-//	velPIDParam.ie[number] = velPIDParam.ie[number] + (e+velPIDParam.e_pre[number])*0.001/2;
-//	if(velPIDParam.ie[number]>velPIDParam.limitIe[number]){
-//		velPIDParam.ie[number] = velPIDParam.limitIe[number];
-//	}else if(velPIDParam.ie[number]<-1*velPIDParam.limitIe[number]){
-//		velPIDParam.ie[number] = -1*velPIDParam.limitIe[number];
-//	}
-//	param.goal[number] = param.goal[number]+velPIDParam.Kp[number]*0.0001*e+velPIDParam.Ki[number]*0.0001*velPIDParam.ie[number]+(velPIDParam.Kd[number]*0.0001*(e-velPIDParam.e_pre[number])/0.001);
-	if(param[number].motorKinds== Motor::C610){
-		if(param[number].goal > 10){
-			param[number].goal = 10;
-		}else if(param[number].goal < -10){
-			param[number].goal = -10;
-		}
-	}else{
-		if(param[number].goal > 20){
-			param[number].goal = 20;
-		}else if(param[number].goal < -20){
-			param[number].goal = -20;
-		}
-	}
-	pidParam[number].vel_e_pre = e;
+float PIDParam::posPID(float target, float revolution){
+	return posKp*(target - revolution);
 }
 
-float MotorCtrl::posPID(uint8_t& number, float& target){
-	return pidParam[number].posKp*(target - param[number].revolution);
-}
-
-void MotorCtrl::stableposPID(uint8_t& number, float& target){
-	float value = posPID(number,target);
-	if(param[number].stableLimitVel < 0){
-		param[number].stableLimitVel = -1*param[number].stableLimitVel;
+void PIDParam::stableposPID(float target, float& goal, float& velocity, float& stableLimitVel, float revolution, Motor& motorKinds){
+	float value = posPID(target, revolution);
+	if(stableLimitVel < 0){
+		stableLimitVel = -1*stableLimitVel;
 	}
-	if(value > param[number].stableLimitVel){
-		value = param[number].stableLimitVel;
-	}else if(value < -1*param[number].stableLimitVel){
-		value = -1*param[number].stableLimitVel;
+	if(value > stableLimitVel){
+		value = stableLimitVel;
+	}else if(value < -1*stableLimitVel){
+		value = -1*stableLimitVel;
 	}
-	velPID(number, value);
+	velPID(value, goal, velocity, motorKinds);
 }
 
 void MotorCtrl::tyokuReset(uint8_t i){
@@ -151,19 +131,19 @@ bool MotorCtrl::update(uint32_t ReceiveID,uint8_t receiveData[8]){
 		reset(number);
 		return true;
 	case Mode::vel:
-		velPID(number, param[number].target);
+		pidParam[number].velPID(param[number].target, param[number].goal, param[number].velocity, param[number].motorKinds);
 		return true;
 	case Mode::pos:
 		setRevolution(number);
-		velPID(number,posPID(number,param[number].target));
+		pidParam[number].velPID(pidParam[number].posPID(param[number].target, param[number].revolution), param[number].goal, param[number].velocity, param[number].motorKinds);
 		return true;
 	case Mode::berutyoku:
 		setRevolution(number);
 		if(param[number].target == 1){
 			if(param[number].revolution < param[number].tyoku_pos_target/2){//vel_ctrl
-				velPID(number, param[number].tyoku_vel_target);
+				pidParam[number].velPID(param[number].tyoku_vel_target, param[number].goal, param[number].velocity, param[number].motorKinds);
 			}else{//pos_ctrl
-				velPID(number,posPID(number, param[number].tyoku_pos_target));
+				pidParam[number].velPID(pidParam[number].posPID(param[number].tyoku_pos_target, param[number].revolution), param[number].goal, param[number].velocity, param[number].motorKinds);
 				if((param[number].velocity == 0.0) && (param[number].revolution > (param[number].tyoku_pos_target-10)) && (param[number].revolution < (param[number].tyoku_pos_target+10))){
 					tyokuReset(number);
 				}
@@ -172,7 +152,7 @@ bool MotorCtrl::update(uint32_t ReceiveID,uint8_t receiveData[8]){
 		return true;
 	case Mode::stablepos:
 		setRevolution(number);
-		stableposPID(number,param[number].target);
+		pidParam[number].stableposPID(param[number].target, param[number].goal, param[number].velocity, param[number].stableLimitVel, param[number].revolution, param[number].motorKinds);
 		return true;
 	default:
 		return true;
@@ -411,6 +391,9 @@ uint16_t getC620Value(float target){
 		target = -target;
 		if(target < 20.0){
 			value = target/20*16384;
+			// NOTE: two's-complement negation should be ~value + 1; missing +1
+			// here biases the encoded magnitude low by 1 LSB. Left as-is
+			// (unverified on real hardware) - see MotorCtrl review notes.
 			value =~ value;
 		}else{
 			value = 16384;
@@ -432,6 +415,9 @@ uint16_t getC610Value(float target){
 		target = -target;
 		if(target < 10.0){
 			value = target/10*10000;
+			// NOTE: two's-complement negation should be ~value + 1; missing +1
+			// here biases the encoded magnitude low by 1 LSB. Left as-is
+			// (unverified on real hardware) - see MotorCtrl review notes.
 			value =~ value;
 		}else{
 			value = 10000;
@@ -458,9 +444,8 @@ void MotorCtrl::transmit1(){
 				value1[2*i+1] = static_cast<uint8_t>(getC610Value(param[i].goal) & 0xFF);
 			}
 		}else{
-			for(int i = 0;i<8;i++){
-				value1[i]=0;
-			}
+			value1[2*i]=0;
+			value1[2*i+1]=0;
 		}
 	}
 	if (0 < HAL_CAN_GetTxMailboxesFreeLevel(&hcan))
@@ -481,16 +466,15 @@ void MotorCtrl::transmit2(){
 				value2[2*(i-4)+1] = static_cast<uint8_t>(getC610Value(param[i].goal) & 0xFF);
 			}
 		}else{
-			for(int i = 0;i<8;i++){
-				value2[i]=0;
-			}
+			value2[2*(i-4)]=0;
+			value2[2*(i-4)+1]=0;
 		}
+	}
 	if (0 < HAL_CAN_GetTxMailboxesFreeLevel(&hcan))
-	    {
-	        led_on(can);
-	        HAL_CAN_AddTxMessage(&hcan, &TxHeader2, value2, &TxMailbox);
-	    }
-}
+	{
+	    led_on(can);
+	    HAL_CAN_AddTxMessage(&hcan, &TxHeader2, value2, &TxMailbox);
+	}
 }
 
 void MotorCtrl::ems(){

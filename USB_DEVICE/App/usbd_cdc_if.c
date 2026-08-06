@@ -236,7 +236,7 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
     case CDC_SET_LINE_CODING:
     {
 
-    	HAL_GPIO_WritePin(LED_CAN_GPIO_Port,LED_GREEN_Pin,GPIO_PIN_SET);
+    	HAL_GPIO_WritePin(LED_GREEN_GPIO_Port,LED_GREEN_Pin,GPIO_PIN_SET);
     	linecoding.bitrate    = (uint32_t)(pbuf[0] | (pbuf[1] << 8) |\
                                          (pbuf[2] << 16) | (pbuf[3] << 24));
     	linecoding.format     = pbuf[4];
@@ -247,7 +247,7 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 
     case CDC_GET_LINE_CODING:
     {
-    	HAL_GPIO_WritePin(LED_CAN_GPIO_Port,LED_GREEN_Pin,GPIO_PIN_SET);
+    	HAL_GPIO_WritePin(LED_GREEN_GPIO_Port,LED_GREEN_Pin,GPIO_PIN_SET);
     	pbuf[0] = (uint8_t)(linecoding.bitrate);
     	pbuf[1] = (uint8_t)(linecoding.bitrate >> 8);
     	pbuf[2] = (uint8_t)(linecoding.bitrate >> 16);

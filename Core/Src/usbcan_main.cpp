@@ -1,4 +1,5 @@
 #include <MotorCtrl.hpp>
+#include <tape_led.hpp>
 #include "main.h"
 #include "usbd_cdc_if.h"
 #include "usb_device.h"
@@ -8,6 +9,7 @@
 MotorCtrl motor;
 
 extern"C"{
+	extern TIM_HandleTypeDef htim2;
 	extern TIM_HandleTypeDef htim3;
 	extern CAN_HandleTypeDef hcan;
 	extern CAN_TxHeaderTypeDef TxHeader;
@@ -33,9 +35,10 @@ void main_cpp()
 	HAL_CAN_Start(&hcan);
 	HAL_TIM_Base_Start_IT(&htim3);
 
-//	HAL_GPIO_WritePin(Blue12_GPIO_Port,Blue12_Pin,GPIO_PIN_SET);
-	HAL_GPIO_WritePin(Red12_GPIO_Port,Red12_Pin,GPIO_PIN_SET);
-//	HAL_GPIO_WritePin(Green12_GPIO_Port,Green12_Pin,GPIO_PIN_SET);
+	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
+	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_2);
+	HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_3);
+	tapeled::setLedState({255, 0, 0});
 
 	uint8_t debug_state = 0;
 	while (true)
