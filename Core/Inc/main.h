@@ -73,7 +73,6 @@ void Error_Handler(void);
 #define Green12_GPIO_Port GPIOA
 #define EMS_Pin GPIO_PIN_3
 #define EMS_GPIO_Port GPIOA
-#define EMS_EXTI_IRQn EXTI3_IRQn
 #define START_Pin GPIO_PIN_8
 #define START_GPIO_Port GPIOA
 #define LED_CAN_Pin GPIO_PIN_9
