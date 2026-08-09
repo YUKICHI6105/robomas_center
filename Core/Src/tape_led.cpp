@@ -10,8 +10,10 @@ namespace tapeled{
 	// driven at IF≈2mA (1kΩ/3.3V), below Toshiba's recommended min (5mA), so tON/tOFF
 	// run slower than the datasheet's typ spec (0.6ms/0.1ms @5mA). Conservative estimate
 	// at this drive current: tON≈1.5ms, tOFF≈0.1-0.2ms, net offset (tON-tOFF)≈1.4ms.
-	// At the 50Hz/256-step PWM below (20ms period, ~78us/step), that is ~18 steps.
-	constexpr uint16_t kOnOffsetTicks = 18;
+	// TIM2 runs at 200Hz over 256 steps (5ms period, ~19.5us/step), so 1.4ms is
+	// ~72 steps. Keep this in sync with the TIM2 prescaler in MX_TIM2_Init():
+	// the offset is a fixed *time*, so its tick count scales with the PWM period.
+	constexpr uint16_t kOnOffsetTicks = 72;
 
 	static uint16_t compensate(uint8_t value){
 		return value == 0 ? 0 : (uint16_t)value + kOnOffsetTicks;
