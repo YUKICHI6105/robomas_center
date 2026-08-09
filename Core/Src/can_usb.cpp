@@ -1,4 +1,5 @@
 #include <MotorCtrl.hpp>
+#include <tape_led.hpp>
 #include "can_usb.h"
 #include "cobs.h"
 #include "usbd_cdc_if.h"
@@ -43,6 +44,14 @@ void usb_process(uint8_t usb_msg[], const uint8_t len)
     {
     	motor.usb(usb_msg);
     	robomaster(usb_msg,len);
+    }
+    break;
+    case 0x05: // tape LED colour: usb_msg[1..3] = R, G, B
+    {
+        if (len < 4) { break; }
+        // only recorded here - the 1 kHz tick applies it, and ignores it while
+        // the emergency stop is engaged so the red pulse cannot be painted over
+        tapeled::setRequestedState({usb_msg[1], usb_msg[2], usb_msg[3]});
     }
     break;
     default:

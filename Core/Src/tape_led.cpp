@@ -34,4 +34,23 @@ namespace tapeled{
 		led_state = state;
 		return updateLedState(state);
 	}
+
+	// Defaults to the green-at-50 % the tick used to hard-code, so behaviour is
+	// unchanged until the host actually sends a colour.
+	static volatile uint32_t requested_packed = ((uint32_t)128 << 8);
+
+	void setRequestedState(State state){
+		requested_packed = ((uint32_t)state.red << 16)
+		                 | ((uint32_t)state.green << 8)
+		                 |  (uint32_t)state.blue;
+	}
+
+	State getRequestedState(){
+		uint32_t packed = requested_packed;
+		State state;
+		state.red   = (uint8_t)(packed >> 16);
+		state.green = (uint8_t)(packed >> 8);
+		state.blue  = (uint8_t)packed;
+		return state;
+	}
 }

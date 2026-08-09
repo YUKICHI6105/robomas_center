@@ -163,20 +163,32 @@ static void update_tape_led(bool ems_released)
 		 26,  26,  26,  26,  26,  26,  26,  26,  26,  26,
 	};
 
-	static uint16_t tick         = 0;
-	static uint8_t  phase        = 0;
-	static bool     was_released = false;
+	static uint16_t       tick         = 0;
+	static uint16_t       phase        = 0;
+	static bool           was_released = false;
+	static tapeled::State applied      = {0, 0, 0};
 
 	if(++tick < step_ticks){ return; }
 	tick = 0;
 
 	if(ems_released){
-		// hand the tape back on release and then leave it alone, so anything
-		// else driving it is not overwritten every period. Green sits at 50 %
-		// (128/255), which also keeps CCR at 200 once compensate() adds 72 -
-		// full scale would push it past ARR=255 and saturate the channel.
+		// Coming out of a stop always hands back a known state: any colour the
+		// host asked for is dropped and green is forced, so it has to re-send
+		// once it sees the release. 50 % keeps CCR at 200 once compensate()
+		// adds 72 - full scale would push it past ARR=255 and saturate.
+		static const tapeled::State released_colour = {0, 128, 0};
 		if(!was_released){
-			tapeled::setLedState({0, 128, 0});
+			tapeled::setRequestedState(released_colour);
+		}
+		// then follow the host again; only written on a change, so this is not
+		// hammering the compare registers every step
+		tapeled::State want = tapeled::getRequestedState();
+		if(!was_released
+		   || want.red   != applied.red
+		   || want.green != applied.green
+		   || want.blue  != applied.blue){
+			tapeled::setLedState(want);
+			applied = want;
 		}
 		phase = 0;
 	}else{
