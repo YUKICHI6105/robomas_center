@@ -5,11 +5,13 @@
 #include "usbd_cdc_if.h"
 #include "stm32f3xx_hal.h"
 #include "main.h"
+#include "buffer.hpp"
 
 #include "led.h"
 
 extern CAN_HandleTypeDef hcan;
 extern MotorCtrl motor;
+Buffer buffer;
 
 void usb_to_can(uint8_t usb_msg[], const uint8_t len);
 void robomaster(uint8_t usb_msg[], const uint8_t len);
@@ -170,6 +172,10 @@ void usb_to_can(uint8_t usb_msg[], const uint8_t len)
     {
         led_on(can);
         HAL_CAN_AddTxMessage(&hcan, &TxHeader, usb_msg + 6, &TxMailbox);
+    }else if(TxHeader.IDE != CAN_ID_STD ||
+             (TxHeader.StdId != 0x200 && TxHeader.StdId != 0x1ff)){
+        // Do not buffer RoboMaster current commands for later replay.
+        buffer.setBuffer(usb_msg);
     }
 }
 

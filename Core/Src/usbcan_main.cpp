@@ -5,8 +5,10 @@
 #include "usb_device.h"
 #include "led.h"
 #include "can_usb.h"
+#include "buffer.hpp"
 
 MotorCtrl motor;
+extern Buffer buffer;
 
 extern"C"{
 	extern TIM_HandleTypeDef htim2;
@@ -86,6 +88,7 @@ void main_cpp()
 			}
 		}
 
+		buffer.resend(hcan);
 		led_process(); //turn off all led
 	}
 }
